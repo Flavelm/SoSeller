@@ -55,6 +55,9 @@ public class FuctionsListener implements Listener {
                 selling.sellItems(p, Arrays.asList(e.getInventory().getContents()), withMsg);
                 menu.open(p, currentMenu);
                 return;
+            case "modern_sell":
+                //TODO
+                return;
             case "buy_boost":
                 boostsModify.buyBoost(p);
                 menu.open(p, currentMenu);

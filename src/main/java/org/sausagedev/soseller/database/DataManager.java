@@ -4,31 +4,23 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.text.DecimalFormat;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 public class DataManager {
-    static final Set<PlayerData> dataContainer = new HashSet<>();
+    static final Map<UUID, PlayerData> dataContainer = new HashMap<>();
 
-    public static Set<PlayerData> getDataContainer() {
+    public static Map<UUID, PlayerData> getDataContainer() {
         return dataContainer;
     }
 
     public static PlayerData search(UUID uuid) {
         Player p = Bukkit.getPlayer(uuid);
         assert p != null;
-        PlayerData playerData = new PlayerData(p);
-        for (PlayerData data : dataContainer) {
-            if (!data.getUUID().equals(uuid)) continue;
-            return data;
-        }
-        return playerData;
+        return dataContainer.getOrDefault(uuid, new PlayerData(p));
     }
 
     public static void replace(PlayerData old, PlayerData current) {
-        dataContainer.remove(old);
-        dataContainer.add(current);
+        dataContainer.replace(current.uuid, current);
     }
 
     public static void importData() {
@@ -37,12 +29,12 @@ public class DataManager {
             playerData.setItems(Database.getItems(uuid))
                     .setBoost(Database.getBoost(uuid))
                     .setAutoSellBought(Database.isBoughtAutoSell(uuid));
-            DataManager.getDataContainer().add(playerData);
+            DataManager.getDataContainer().put(playerData.uuid, playerData);
         });
     }
 
     public static void exportData() {
-        dataContainer.forEach(playerData -> {
+        dataContainer.values().forEach(playerData -> {
             UUID uuid = playerData.getUUID();
             Database.register(uuid);
             Database.setItems(uuid, playerData.getItems());

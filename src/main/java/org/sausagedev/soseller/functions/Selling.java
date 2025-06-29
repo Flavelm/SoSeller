@@ -11,78 +11,96 @@ import org.sausagedev.soseller.database.DataManager;
 import org.sausagedev.soseller.utils.ItemBuilder;
 import org.sausagedev.soseller.utils.Utils;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
 public class Selling {
     private final SoSeller main = SoSeller.getPlugin();
 
-    public void sellItems(Player p, List<ItemStack> itemList, boolean withMessage) {
-        DataManager.PlayerData playerData = DataManager.search(p.getUniqueId()), old = playerData.clone();
-        double boost = playerData.getBoost();
-        MessagesField messages = Config.messages();
-        SettingsField settings = Config.settings();
-        double globalBoost = settings.globalBoost();
-        Map<String, Object> priceList = settings.sellItems();
-
-        int profit = 0;
-        int items = 0;
-
-        for (ItemStack item : itemList) {
-            if (item == null ||
-                    item.getType().equals(Material.AIR) ||
-                    new ItemBuilder(item).hasFunction()) continue;
-            String key = item.getType().toString();
-            if (!priceList.containsKey(key)) continue;
-            int price = (int) priceList.get(key);
-            int amount = item.getAmount();
-            double money = price*amount*boost*globalBoost;
-            main.getEconomy().depositPlayer(p.getName(), money);
-            profit += (int) money;
-            items += amount;
-            item.setAmount(0);
-        }
-
-        if (profit == 0 || items == 0) return;
-
-        int finalItems = items;
-        playerData.addItems(finalItems);
-        DataManager.replace(old, playerData);
-        Utils.playSound(p, "onSellItems");
-
-        if (!withMessage) return;
-        String msg = messages.sold();
-        msg = msg.replace("{amount}", String.valueOf(items));
-        msg = msg.replace("{profit}", String.valueOf(profit));
-        p.sendMessage(Utils.convert(msg));
-    }
-
-    public void sellItem(Player p, ItemStack item, boolean withMessage) {
+    public void sellItems(Player p, ItemStack[] items, boolean withMessage, SaleMode mode) {
         DataManager.PlayerData playerData = DataManager.search(p.getUniqueId());
         double boost = playerData.getBoost();
-        SettingsField settings = Config.settings();
-        double globalBoost = settings.globalBoost();
-        Map<String, Object> priceList = settings.sellItems();
+        Map<String, Object> prices = Config.settings().sellItems();
 
-        int profit = 0;
+        List<ItemStack> sellableItems = Arrays
+                .stream(items)
+                .filter((e) -> canSale(e, prices))
+                .toList();
 
-        if (item == null || item.getType().equals(Material.AIR) || new ItemBuilder(item).hasFunction()) return;
+        int sumOfSellable = sellableItems
+                .stream()
+                .mapToInt(ItemStack::getAmount)
+                .sum();
+
+        int neededAmount = switch (mode) {
+            case ALL -> sumOfSellable;
+            case STACK -> Math.min(sumOfSellable, 64);
+            case ONE -> Math.min(sumOfSellable, 1);
+        };
+
+        if (neededAmount <= 0) //Нечего продавать
+            return;
+
+        SaleResult saleResult = new SaleResult(0, 0);
+        for (ItemStack item : sellableItems) {
+            var currentSale = processSale(
+                    item,
+                    (Integer) prices.get(item.getType().toString()),//Unsafe?
+                    boost,
+                    neededAmount
+                    );
+            neededAmount -= currentSale.amount;
+            saleResult = saleResult.add(currentSale);
+        }
+
+        if (saleResult.isZero())
+            return; //Почему?
+
+        main.getEconomy().depositPlayer(p, saleResult.profit);
+
+        int finalItems = saleResult.amount;
+        playerData.addItems(finalItems);
+        DataManager.replace(null, playerData);
+        Utils.playSound(p, "onSellItems");
+
+        if (withMessage)
+            sendMessage(p, saleResult);
+    }
+
+    public void sellItem(Player p, ItemStack item, boolean withMessage, SaleMode saleMode) {
+        this.sellItems(p, new ItemStack[]{item}, withMessage, saleMode);
+    }
+
+    private boolean canSale(ItemStack item, Map<String, Object> prices) {
+        if (item == null
+                || item.getType().equals(Material.AIR)
+                || new ItemBuilder(item).hasFunction())
+            return false;
         String key = item.getType().toString();
-        if (!priceList.containsKey(key)) return;
-        int price = (int) priceList.get(key);
-        int amount = item.getAmount();
-        double money = price*amount*boost*globalBoost;
-        main.getEconomy().depositPlayer(p.getName(), money);
-        profit += (int) money;
+        return prices.containsKey(key);
+    }
 
-        playerData.addItems(item.getAmount());
-        item.setAmount(0);
+    private SaleResult processSale(ItemStack item, int price, double personalBoost, int amount) {
+        double profit = price*amount*personalBoost*Config.settings().globalBoost();
+        item.setAmount(item.getAmount() - amount);
 
+        return new SaleResult(amount, profit);
+    }
 
-        if (!withMessage) return;
+    private record SaleResult(int amount, double profit) {
+        public SaleResult add(SaleResult o) {
+            return new SaleResult(amount+o.amount, profit+o.profit);
+        }
+        public boolean isZero() {
+            return amount == 0 && profit == 0;
+        }
+    }
+
+    private void sendMessage(Player p, SaleResult saleResult) {
         String msg = Config.messages().sold();
-        msg = msg.replace("{amount}", String.valueOf(amount));
-        msg = msg.replace("{profit}", String.valueOf(profit));
+        msg = msg.replace("{amount}", String.valueOf(saleResult.amount))
+                .replace("{profit}", String.valueOf(saleResult.profit));
         p.sendMessage(Utils.convert(msg));
     }
 }

@@ -11,6 +11,7 @@ import org.sausagedev.soseller.configuration.Config;
 import org.sausagedev.soseller.database.DataManager;
 import org.sausagedev.soseller.functions.AutoSellModify;
 import org.sausagedev.soseller.functions.BoostsModify;
+import org.sausagedev.soseller.functions.SaleMode;
 import org.sausagedev.soseller.functions.Selling;
 import org.sausagedev.soseller.gui.Menu;
 import org.sausagedev.soseller.utils.*;
@@ -52,7 +53,7 @@ public class FuctionsListener implements Listener {
                 return;
             case "sell_all":
                 boolean withMsg = (boolean) Config.settings().autoSell().get("message");
-                selling.sellItems(p, Arrays.asList(e.getInventory().getContents()), withMsg);
+                selling.sellItems(p, e.getInventory().getContents(), withMsg, SaleMode.ALL);
                 menu.open(p, currentMenu);
                 return;
             case "modern_sell":

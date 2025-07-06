@@ -82,10 +82,14 @@ public class Selling {
     }
 
     private SaleResult processSale(ItemStack item, int price, double personalBoost, int amount) {
-        double profit = price*amount*personalBoost*Config.settings().globalBoost();
-        item.setAmount(item.getAmount() - amount);
+        int available = item.getAmount();
+        int toSell = Math.min(available, amount);  // Сколько реально можно продать
 
-        return new SaleResult(amount, profit);
+        double profit = price * toSell * personalBoost * Config.settings().globalBoost();
+
+        item.setAmount(available - toSell); // Обновляем количество предметов
+
+        return new SaleResult(toSell, profit); // Возвращаем фактические данные
     }
 
     private record SaleResult(int amount, double profit) {

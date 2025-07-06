@@ -29,16 +29,21 @@ public class FuctionsListener implements Listener {
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent e) {
+        Inventory clickedInventory = e.getClickedInventory();
+        if (clickedInventory != null
+            && !(clickedInventory.getHolder() instanceof CustomHolder)) {
+            return;
+        }
+
+        e.setResult(Event.Result.DENY);
+
         ItemStack item = e.getCurrentItem();
         if (item == null || item.getType() == Material.AIR) {
             return;
         }
+
         ItemBuilder itemBuilder = new ItemBuilder(item);
-        Inventory clickedInventory = e.getClickedInventory();
-        if (!itemBuilder.hasFunction()
-            && clickedInventory != null
-            && clickedInventory.getHolder() instanceof CustomHolder) {
-            e.setResult(Event.Result.DENY);
+        if (!itemBuilder.hasFunction()) {
             return;
         }
 
@@ -70,15 +75,16 @@ public class FuctionsListener implements Listener {
                 selling.sellItems(player, player.getInventory().getStorageContents(), withMsg, SaleMode.ALL);
                 menu.open(player, currentMenu);
                 return;
-            case "modern_sell":
+            case "modern_sell_all":
                 boolean withMsg1 = (boolean) Config.settings().autoSell().get("message");
+                var click = e.getClick();
                 SaleMode mode;
-                if (e.isLeftClick())
+                if (click.isLeftClick())
                     mode = SaleMode.ONE;
-                else if (e.isRightClick())
-                    mode = SaleMode.STACK;
-                else if (e.isRightClick() && e.isShiftClick())
+                else if (click.isRightClick() && click.isShiftClick())
                     mode = SaleMode.ALL;
+                else if (click.isRightClick())
+                    mode = SaleMode.STACK;
                 else
                     return;
                 selling.sellItems(player, player.getInventory().getStorageContents(), withMsg1, mode);
@@ -104,6 +110,8 @@ public class FuctionsListener implements Listener {
                 }
                 autoSellModify.buyAutoSell(player);
                 menu.open(player, currentMenu);
+            default:
+                throw new RuntimeException("Function not found!!");
         }
     }
 }

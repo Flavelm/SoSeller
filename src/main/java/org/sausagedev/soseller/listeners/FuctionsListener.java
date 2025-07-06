@@ -3,9 +3,11 @@ package org.sausagedev.soseller.listeners;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.sausagedev.soseller.configuration.Config;
 import org.sausagedev.soseller.database.DataManager;
@@ -13,6 +15,7 @@ import org.sausagedev.soseller.functions.AutoSellModify;
 import org.sausagedev.soseller.functions.BoostsModify;
 import org.sausagedev.soseller.functions.SaleMode;
 import org.sausagedev.soseller.functions.Selling;
+import org.sausagedev.soseller.gui.CustomHolder;
 import org.sausagedev.soseller.gui.Menu;
 import org.sausagedev.soseller.utils.*;
 
@@ -27,13 +30,23 @@ public class FuctionsListener implements Listener {
     @EventHandler
     public void onInventoryClick(InventoryClickEvent e) {
         ItemStack item = e.getCurrentItem();
+        if (item == null || item.getType() == Material.AIR) {
+            return;
+        }
+        ItemBuilder itemBuilder = new ItemBuilder(item);
+        Inventory clickedInventory = e.getClickedInventory();
+        if (!itemBuilder.hasFunction()
+            && clickedInventory != null
+            && clickedInventory.getHolder() instanceof CustomHolder) {
+            e.setResult(Event.Result.DENY);
+            return;
+        }
+
         if (!(e.getWhoClicked() instanceof Player player)) {
             return;
         }
+
         DataManager.PlayerData playerData = DataManager.search(player.getUniqueId());
-        if (item == null || item.getType() == Material.AIR) return;
-        ItemBuilder itemBuilder = new ItemBuilder(item);
-        if (!itemBuilder.hasFunction()) return;
 
         String f = itemBuilder.function().toLowerCase();
         Menu menu = new Menu();
@@ -54,7 +67,7 @@ public class FuctionsListener implements Listener {
                 return;
             case "sell_all":
                 boolean withMsg = (boolean) Config.settings().autoSell().get("message");
-                selling.sellItems(player, e.getInventory().getContents(), withMsg, SaleMode.ALL);
+                selling.sellItems(player, player.getInventory().getStorageContents(), withMsg, SaleMode.ALL);
                 menu.open(player, currentMenu);
                 return;
             case "modern_sell":
@@ -68,7 +81,8 @@ public class FuctionsListener implements Listener {
                     mode = SaleMode.ALL;
                 else
                     return;
-                selling.sellItems(player, player.getInventory().getContents(), withMsg1, mode);
+                selling.sellItems(player, player.getInventory().getStorageContents(), withMsg1, mode);
+                menu.open(player, currentMenu);
                 return;
             case "buy_boost":
                 boostsModify.buyBoost(player);

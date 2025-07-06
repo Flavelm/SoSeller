@@ -68,8 +68,8 @@ public class Selling {
             sendMessage(p, saleResult);
     }
 
-    public void sellItem(Player p, ItemStack item, boolean withMessage, SaleMode saleMode) {
-        this.sellItems(p, new ItemStack[]{item}, withMessage, saleMode);
+    public void sellItem(Player p, ItemStack item, boolean withMessage) {
+        this.sellItems(p, new ItemStack[]{item}, withMessage, SaleMode.ALL);
     }
 
     private boolean canSale(ItemStack item, Map<String, Object> prices) {

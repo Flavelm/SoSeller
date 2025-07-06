@@ -27,58 +27,69 @@ public class FuctionsListener implements Listener {
     @EventHandler
     public void onInventoryClick(InventoryClickEvent e) {
         ItemStack item = e.getCurrentItem();
-        Player p = Bukkit.getPlayer(e.getWhoClicked().getName());
-        if (p == null) return;
-        DataManager.PlayerData playerData = DataManager.search(p.getUniqueId());
+        if (!(e.getWhoClicked() instanceof Player player)) {
+            return;
+        }
+        DataManager.PlayerData playerData = DataManager.search(player.getUniqueId());
         if (item == null || item.getType() == Material.AIR) return;
         ItemBuilder itemBuilder = new ItemBuilder(item);
         if (!itemBuilder.hasFunction()) return;
 
         String f = itemBuilder.function().toLowerCase();
         Menu menu = new Menu();
-        UUID uuid = p.getUniqueId();
+        UUID uuid = player.getUniqueId();
         String currentMenu = MenuDetect.getMenu(uuid) != null ? MenuDetect.getMenu(uuid) : "main";
 
         if (f.contains("move_to-")) {
             f = f.replace("move_to-", "");
-            menu.open(p, f);
-            Utils.playSound(p, "onSwapGui");
+            menu.open(player, f);
+            Utils.playSound(player, "onSwapGui");
             return;
         }
 
         switch (f) {
             case "offon_autosell_items":
-                autoSellModify.offOnAutoSellItem(p, item.getType());;
-                menu.open(p, currentMenu);
+                autoSellModify.offOnAutoSellItem(player, item.getType());;
+                menu.open(player, currentMenu);
                 return;
             case "sell_all":
                 boolean withMsg = (boolean) Config.settings().autoSell().get("message");
-                selling.sellItems(p, e.getInventory().getContents(), withMsg, SaleMode.ALL);
-                menu.open(p, currentMenu);
+                selling.sellItems(player, e.getInventory().getContents(), withMsg, SaleMode.ALL);
+                menu.open(player, currentMenu);
                 return;
             case "modern_sell":
-                //TODO
+                boolean withMsg1 = (boolean) Config.settings().autoSell().get("message");
+                SaleMode mode;
+                if (e.isLeftClick())
+                    mode = SaleMode.ONE;
+                else if (e.isRightClick())
+                    mode = SaleMode.STACK;
+                else if (e.isRightClick() && e.isShiftClick())
+                    mode = SaleMode.ALL;
+                else
+                    return;
+                selling.sellItems(player, player.getInventory().getContents(), withMsg1, mode);
                 return;
             case "buy_boost":
-                boostsModify.buyBoost(p);
-                menu.open(p, currentMenu);
+                boostsModify.buyBoost(player);
+                menu.open(player, currentMenu);
                 return;
             case "auto-sell":
                 boolean bought = playerData.isAutoSellBought();
                 if (bought || (int) Config.settings().autoSell().get("cost") == 0) {
                     boolean isEnabled = AutoSell.isEnabled(uuid);
-                    Utils.playSound(p, "onSwapAutoSell");
+                    Utils.playSound(player, "onSwapAutoSell");
                     if (isEnabled) {
                         AutoSell.disable(uuid);
-                        menu.open(p, currentMenu);
+                        menu.open(player, currentMenu);
                         return;
                     }
                     AutoSell.enable(uuid);
-                    menu.open(p, currentMenu);
+                    menu.open(player, currentMenu);
                     return;
                 }
-                autoSellModify.buyAutoSell(p);
-                menu.open(p, currentMenu);
+                autoSellModify.buyAutoSell(player);
+                menu.open(player, currentMenu);
         }
     }
 }
